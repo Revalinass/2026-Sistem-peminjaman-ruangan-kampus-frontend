@@ -2,51 +2,51 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 function App() {
-  // --- 1. STATE MANAGEMENT ---
   const [data, setData] = useState([]);
   const [ruangan, setRuangan] = useState([]);
-  const [form, setForm] = useState({ namaPeminjam: '', namaRuangan: '', tanggal: new Date().toISOString(), status: 'Menunggu' });
+  const [searchTerm, setSearchTerm] = useState(""); // State untuk pencarian
+  const [form, setForm] = useState({ 
+    namaPeminjam: '', 
+    namaRuangan: '', 
+    tanggal: new Date().toISOString(), 
+    status: 'Menunggu' 
+  });
   const [editingId, setEditingId] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
   const API_URL = "http://localhost:5092/api/Peminjaman";
   const RUANG_URL = "http://localhost:5092/api/Ruang";
 
-  // --- 2. FETCH DATA ---
   const refreshData = () => {
-    axios.get(API_URL)
-      .then(res => setData(res.data))
-      .catch(err => console.error("Gagal ambil data peminjaman:", err));
+    axios.get(API_URL).then(res => setData(res.data)).catch(err => console.error(err));
   };
 
   const refreshRuang = () => {
-    axios.get(RUANG_URL)
-      .then(res => setRuangan(res.data))
-      .catch(err => console.error("Gagal ambil data ruangan:", err));
+    axios.get(RUANG_URL).then(res => setRuangan(res.data)).catch(err => console.error(err));
   };
 
-  useEffect(() => { 
-    refreshData(); 
-    refreshRuang(); 
-  }, []);
+  useEffect(() => { refreshData(); refreshRuang(); }, []);
 
-  // --- 3. LOGIKA CRUD ---
+  // LOGIKA FILTER PENCARIAN
+  const filteredData = data.filter((item) => {
+    return (
+      item.namaPeminjam?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.namaRuangan?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
   const handleSimpan = (e) => {
     e.preventDefault();
-    if (editingId) {
-      axios.put(`${API_URL}/${editingId}`, form).then(() => {
-        alert("Data Berhasil Diperbarui!");
-        setEditingId(null);
-        refreshData();
-        resetForm();
-      });
-    } else {
-      axios.post(API_URL, form).then(() => {
-        alert("Data Berhasil Ditambah!");
-        refreshData();
-        resetForm();
-      });
-    }
+    const action = editingId 
+      ? axios.put(`${API_URL}/${editingId}`, form) 
+      : axios.post(API_URL, form);
+
+    action.then(() => {
+      alert(editingId ? "Data Berhasil Diperbarui!" : "Data Berhasil Ditambah!");
+      setEditingId(null);
+      refreshData();
+      resetForm();
+    });
   };
 
   const resetForm = () => {
@@ -65,22 +65,20 @@ function App() {
 
   const handleHapus = (id) => {
     if (window.confirm("Yakin ingin menghapus data ini?")) {
-      axios.delete(`${API_URL}/${id}`).then(() => {
-        refreshData();
-      });
+      axios.delete(`${API_URL}/${id}`).then(() => refreshData());
     }
   };
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'sans-serif', maxWidth: '1100px', margin: 'auto', backgroundColor: '#fcfcfc' }}>
-      <h1 style={{ color: '#2c3e50', textAlign: 'center' }}>Dashboard Peminjaman Ruangan PENS</h1>
+    <div style={{ padding: '40px', fontFamily: 'sans-serif', width: '100vw', minHeight: '100vh', backgroundColor: '#fcfcfc', margin: 0, boxSizing: 'border-box' }}>
+      <h1 style={{ color: '#2c3e50', textAlign: 'center' }}>Dashboard Peminjaman Ruangan</h1>
       <hr style={{ marginBottom: '30px', opacity: '0.3' }} />
 
-      {/* --- 4. MODAL DETAIL --- */}
+      {/* --- MODAL RINCIAN --- */}
       {selectedDetail && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '15px', width: '450px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0 }}>🔍 Detail Peminjaman</h3>
+            <h3 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0 }}>🔍 Rincian Peminjaman</h3>
             <div style={{ lineHeight: '1.8' }}>
                 <p><strong>ID:</strong> {selectedDetail.id}</p>
                 <p><strong>Peminjam:</strong> {selectedDetail.namaPeminjam}</p>
@@ -93,34 +91,57 @@ function App() {
         </div>
       )}
 
-      {/* --- 5. FORM INPUT --- */}
+      {/* --- FORM INPUT --- */}
       <div style={{ marginBottom: '40px', padding: '25px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #edf2f7' }}>
-        <h3 style={{ marginTop: 0, color: '#34495e' }}>{editingId ? "📝 Edit Data Peminjaman" : "➕ Tambah Peminjaman Baru"}</h3>
+        <h3 style={{ marginTop: 0, color: '#34495e' }}>{editingId ? "📝 Edit Peminjaman" : "➕ Tambah Peminjaman Baru"}</h3>
         <form onSubmit={handleSimpan} style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
           <input 
-            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd', flex: '1' }}
+            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd', flex: '1', minWidth: '200px' }}
             type="text" placeholder="Nama Peminjam" value={form.namaPeminjam} 
             onChange={e => setForm({...form, namaPeminjam: e.target.value})} required 
           />
           <select 
-            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd', flex: '1' }}
+            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd', flex: '1', minWidth: '200px' }}
             value={form.namaRuangan} 
-            onChange={e => setForm({...form, namaRuangan: e.target.value})} 
-            required
+            onChange={e => setForm({...form, namaRuangan: e.target.value})} required
           >
             <option value="">-- Pilih Ruangan --</option>
-            {ruangan.map(r => (
-              <option key={r.id} value={r.namaRuangan}>{r.namaRuangan}</option>
-            ))}
+            {ruangan.map(r => <option key={r.id} value={r.namaRuangan}>{r.namaRuangan}</option>)}
+          </select>
+          <input 
+            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd', flex: '1', minWidth: '200px' }}
+            type="datetime-local" 
+            value={form.tanggal ? form.tanggal.substring(0, 16) : ''} 
+            onChange={e => setForm({...form, tanggal: e.target.value})} required 
+          />
+          <select 
+            style={{ padding: '12px', borderRadius: '8px', border: '1px solid #ddd', flex: '1', minWidth: '150px' }}
+            value={form.status} 
+            onChange={e => setForm({...form, status: e.target.value})}
+          >
+            <option value="Menunggu">Menunggu</option>
+            <option value="Disetujui">Disetujui</option>
+            <option value="Ditolak">Ditolak</option>
           </select>
           <button type="submit" style={{ backgroundColor: editingId ? '#2196F3' : '#4CAF50', color: 'white', border: 'none', padding: '12px 25px', cursor: 'pointer', borderRadius: '8px', fontWeight: 'bold' }}>
-            {editingId ? "Update Data" : "Simpan Data"}
+            {editingId ? "Update" : "Simpan"}
           </button>
         </form>
       </div>
 
-      {/* --- 6. TABEL RIWAYAT (6 KOLOM TERMASUK TANGGAL) --- */}
-      <h3 style={{ color: '#34495e' }}>📋 Riwayat Peminjaman</h3>
+      {/* --- BAGIAN PENCARIAN (FITUR WAJIB TUGAS) --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <h3 style={{ color: '#34495e', margin: 0 }}>📋 Riwayat Peminjaman</h3>
+        <input 
+          type="text" 
+          placeholder="🔍 Cari Peminjam atau Ruangan..." 
+          style={{ padding: '10px 15px', borderRadius: '25px', border: '1px solid #cbd5e0', width: '300px', outline: 'none' }}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* --- TABEL RIWAYAT --- */}
       <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -134,7 +155,7 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {data.map((item) => (
+            {filteredData.length > 0 ? filteredData.map((item) => (
               <tr key={item.id} style={{ textAlign: 'center', borderBottom: '1px solid #edf2f7' }}>
                 <td style={{ padding: '15px' }}>{item.id}</td>
                 <td style={{ fontWeight: '500' }}>{item.namaPeminjam}</td>
@@ -142,8 +163,8 @@ function App() {
                 <td>{new Date(item.tanggal).toLocaleString('id-ID')}</td>
                 <td>
                   <span style={{ 
-                    backgroundColor: item.status === 'Disetujui' ? '#c6f6d5' : '#feebc8', 
-                    color: item.status === 'Disetujui' ? '#22543d' : '#744210', 
+                    backgroundColor: item.status === 'Disetujui' ? '#c6f6d5' : (item.status === 'Ditolak' ? '#fed7d7' : '#feebc8'), 
+                    color: item.status === 'Disetujui' ? '#22543d' : (item.status === 'Ditolak' ? '#822727' : '#744210'), 
                     padding: '4px 10px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold' 
                   }}>
                     {item.status || 'Menunggu'}
@@ -155,12 +176,14 @@ function App() {
                   <button onClick={() => handleHapus(item.id)} style={{ background: '#fff5f5', color: '#e53e3e', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>Hapus</button>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr><td colSpan="6" style={{ padding: '20px', color: '#718096' }}>Data tidak ditemukan...</td></tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* --- 7. DAFTAR RUANGAN --- */}
+      {/* --- DAFTAR RUANGAN --- */}
       <h3 style={{ marginTop: '50px', color: '#2c3e50', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>🏢 Daftar Ruangan Tersedia</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '25px', marginTop: '20px' }}>
         {ruangan.map((r) => (
